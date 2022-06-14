@@ -1,6 +1,6 @@
 # OpenVINO-RemoteBlobSample
 A sample of [Direct Consuming of the NV12 VAAPI Video Decoder Surface on Linux](https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API.html#examples)  with ffmpeg.
-This project can be add to [OpenVINO Cpp sample directory](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp) and run. 
+This project follows [OpenVINO Cpp sample](https://github.com/openvinotoolkit/openvino/tree/master/samples/cpp).
 
 
 ## System information (version)
@@ -13,3 +13,19 @@ This project can be add to [OpenVINO Cpp sample directory](https://github.com/op
 --extra-cflags=-I/opt/intel/openvino_2022/runtime/include/ie/ --extra-ldflags=-L/opt/intel/openvino_2022/runtime/lib/intel64/ --extra-ldflags=-L/opt/intel/openvino_2022/runtime/3rdparty/tbb/lib/ --enable-libopenvino --disable-lzma --enable-pic --enable-nonfree --disable-stripping --enable-hwaccel=h264_vaapi --enable-shared
 ```
 
+## Run
+Prepare the IR Model ssd300
+```
+omz_downloader --name ssd300
+omz_converter --name ssd300
+```
+Build
+```
+mkdir build && cd build
+cmake ..
+make -j8
+```
+Run
+```
+./intel64/hello_remote_blob /workspace/input.mp4 /workspace/output.mp4
+```

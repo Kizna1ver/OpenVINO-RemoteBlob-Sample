@@ -108,46 +108,49 @@ if(NOT DEFINED CMAKE_CXX_STANDARD)
 endif()
 ####################################
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/gflags" AND
-    NOT DEFINED OpenVINO_SOURCE_DIR)
-    add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
-endif()
+# set (OpenVINO_SAMPLE_DIR "/opt/intel/openvino/samples/cpp")
+# message("openvino_sample_dir: ${OpenVINO_SAMPLE_DIR}")
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/zlib")
-    add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
-endif()
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/thirdparty/gflags" AND
+#     NOT DEFINED OpenVINO_SOURCE_DIR)
+#     add_subdirectory(thirdparty/gflags EXCLUDE_FROM_ALL)
+# endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/cnpy")
-    add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
-endif()
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/thirdparty/zlib")
+#     add_subdirectory(thirdparty/zlib EXCLUDE_FROM_ALL)
+# endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/json")
-    add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
-endif()
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/thirdparty/cnpy")
+#     add_subdirectory(thirdparty/cnpy EXCLUDE_FROM_ALL)
+# endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/utils")
-    add_subdirectory(common/utils)
-endif()
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/thirdparty/json")
+#     add_subdirectory(thirdparty/json EXCLUDE_FROM_ALL)
+# endif()
 
-# format reader must be added after find_package(OpenVINO) to get
-# exactly the same OpenCV_DIR path which was used for the OpenVINO build
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/format_reader")
-    add_subdirectory(common/format_reader)
-elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/opencv_c_wrapper")
-    add_subdirectory(common/opencv_c_wrapper)
-endif()
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/common/utils")
+#     add_subdirectory(common/utils)
+# endif()
 
-# samples build can be switched off during whole IE build
-if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
-    return()
-endif()
+# # format reader must be added after find_package(OpenVINO) to get
+# # exactly the same OpenCV_DIR path which was used for the OpenVINO build
+# if(EXISTS "${OpenVINO_SAMPLE_DIR}/common/format_reader")
+#     add_subdirectory(common/format_reader)
+# elseif(EXISTS "${OpenVINO_SAMPLE_DIR}/common/opencv_c_wrapper")
+#     add_subdirectory(common/opencv_c_wrapper)
+# endif()
+
+# # samples build can be switched off during whole IE build
+# if (DEFINED OpenVINO_SOURCE_DIR AND NOT ENABLE_SAMPLES)
+#     return()
+# endif()
 
 function(add_samples_to_build)
     # check each passed sample subdirectory
     foreach (dir ${ARGN}) # ARGN: dynamic parameter
-        if (IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${dir})
+        if (IS_DIRECTORY ${OpenVINO_SAMPLE_DIR}/${dir})
             # check if a subdirectory contains CMakeLists.txt. In this case we can build it.
-            file(GLOB is_sample_dir "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
+            file(GLOB is_sample_dir "${OpenVINO_SAMPLE_DIR}/${dir}/CMakeLists.txt")
             if(is_sample_dir)
                 # check if specified sample/demo is found.
                 if (BUILD_SAMPLE_NAME)
@@ -213,12 +216,12 @@ macro(ie_add_sample)
     if(IE_SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
     endif()
-    target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
+    # target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../common")
 
     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${ov_link_libraries} ${IE_SAMPLE_DEPENDENCIES})  # 链接上必须的几个动态库
-    if(NOT c_sample)
-        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
-    endif()
+    # if(NOT c_sample)
+    #     target_link_libraries(${IE_SAMPLE_NAME} PRIVATE gflags)
+    # endif()
 
     install(
         TARGETS ${IE_SAMPLE_NAME}

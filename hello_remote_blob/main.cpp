@@ -41,12 +41,10 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include <samples/common.hpp>
 #include <ctime>
 #include <algorithm>
 #include <map>
 
-#include "samples/args_helper.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/ocl/va.hpp"
@@ -403,7 +401,7 @@ int main(int argc, char **argv)
 
     // initialize the core and load the network
     ov::Core core;
-    auto model = core.read_model("/opt/intel/openvino_2022.1.0.643/samples/cpp/hello_remote_blob/public/ssd300/FP32/ssd300.xml");
+    auto model = core.read_model("/home/ljy/jianyu.liu/project/OpenVINO-RemoteBlobSample/public/ssd300/FP32/ssd300.xml");
     // auto model = core.read_model("/opt/intel/openvino/samples/cpp/hello_remote_blob/public/vgg16/FP32/vgg16.xml");
 
     printf("Preprocessing...\n");  
@@ -449,7 +447,7 @@ int main(int argc, char **argv)
     auto input_nodes = model->inputs();
     for (auto input_node:input_nodes){
         std::string name = input_node.get_any_name();
-        slog::info<< "input node name:" << input_node.get_any_name() << slog::endl;
+        // slog::info<< "input node name:" << input_node.get_any_name() << slog::endl;
     }
 
     /* actual decoding and dump the raw data */
@@ -478,7 +476,7 @@ int main(int argc, char **argv)
             // infer_request.start_async();
             // infer_request.wait();
             infer_request.infer();
-            slog::info << "No. "<<i-1<<"frame inference completed"<< slog::endl;
+            // slog::info << "No. "<<i-1<<"frame inference completed"<< slog::endl;
         }
         // if (OK == infer_request_2->Wait(IInferRequest::WaitMode::RESULT_READY)) {}
         // /* you can add your post-process codes here, when the infer_request_2 is completed*/
