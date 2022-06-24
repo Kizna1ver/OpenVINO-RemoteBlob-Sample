@@ -145,27 +145,30 @@ endif()
 #     return()
 # endif()
 
-function(add_samples_to_build)
-    # check each passed sample subdirectory
-    foreach (dir ${ARGN}) # ARGN: dynamic parameter
-        if (IS_DIRECTORY ${OpenVINO_SAMPLE_DIR}/${dir})
-            # check if a subdirectory contains CMakeLists.txt. In this case we can build it.
-            file(GLOB is_sample_dir "${OpenVINO_SAMPLE_DIR}/${dir}/CMakeLists.txt")
-            if(is_sample_dir)
-                # check if specified sample/demo is found.
-                if (BUILD_SAMPLE_NAME)
-                    list(FIND BUILD_SAMPLE_NAME ${dir} index)
-                endif()
-                if (index EQUAL -1)
-                    message(STATUS "${dir} SKIPPED")
-                else()
-                    # Include subdirectory to the project.
-                    add_subdirectory(${dir})
-                endif()
-            endif()
-        endif()
-    endforeach()
-endfunction(add_samples_to_build)
+# function(add_samples_to_build)
+#     # check each passed sample subdirectory
+#     foreach (dir ${ARGN}) # ARGN: dynamic parameter
+#         message(${CMAKE_CURRENT_SOURCE_DIR}/${dir})
+#         if (IS_DIRECTORY ${dir})
+#             message(${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt)
+#             # check if a subdirectory contains CMakeLists.txt. In this case we can build it.
+#             file(GLOB is_sample_dir "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
+#             if(is_sample_dir)
+#                 # message(${dir})
+#                 # check if specified sample/demo is found.
+#                 if (BUILD_SAMPLE_NAME)
+#                     list(FIND BUILD_SAMPLE_NAME ${dir} index)
+#                 endif()
+#                 if (index EQUAL -1)
+#                     message(STATUS "${dir} SKIPPED")
+#                 else()
+#                     # Include subdirectory to the project.
+#                     add_subdirectory(${dir})
+#                 endif()
+#             endif()
+#         endif()
+#     endforeach()
+# endfunction(add_samples_to_build)
 
 include(CMakeParseArguments)
 
@@ -261,4 +264,5 @@ file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
     list(REMOVE_ITEM samples_dirs common thirdparty)
 endif()
-add_samples_to_build(${samples_dirs})
+# add_samples_to_build(${samples_dirs})
+add_subdirectory(hello_remote_blob)
