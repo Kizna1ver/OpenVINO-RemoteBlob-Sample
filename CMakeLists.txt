@@ -71,7 +71,9 @@ if (WIN32)
     endif()
 else()
     # treating warnings as errors
+    message("CMAKE_CXX_FLAGS: ${CMAKE_CXX_FLAGS}")
     if(TREAT_WARNING_AS_ERROR)
+        message("Treating warning as error!!!!!!!!!!! ${CMAKE_CXX_FLAGS}")
         set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
     endif()
 

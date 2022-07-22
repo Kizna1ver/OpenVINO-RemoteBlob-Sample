@@ -44,7 +44,9 @@
 #include <ctime>
 #include <algorithm>
 #include <map>
+#include <fstream>
 
+#include "classification_results.h"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/ocl/va.hpp"
@@ -109,7 +111,8 @@ bool buildnetwork= 1 ;
 #endif
 
 
-const char *filter_descr = "scale_vaapi=300:300"; //scale parameters w:h
+// const char *filter_descr = "scale_vaapi=300:300"; //scale parameters w:h
+const char *filter_descr = "scale_vaapi=iw:ih"; //scale parameters w:h
 static int init_filters(const char *filters_descr,AVBufferRef  *hw_frames_ctx);
 static AVBufferRef *hw_device_ctx = NULL;
 static enum AVPixelFormat hw_pix_fmt;
@@ -396,26 +399,34 @@ int main(int argc, char **argv)
 
     // --------------------------- 1. Load inference engine instance -------------------------------------
 
-    size_t input_height = 300;
-    size_t input_width = 300;
+    // size_t input_height = 224;
+    // size_t input_width = 224;
+    size_t input_height = 1080;
+    size_t input_width = 1920;
 
     // initialize the core and load the network
     ov::Core core;
-    auto model = core.read_model("/home/ljy/jianyu.liu/project/OpenVINO-RemoteBlobSample/public/ssd300/FP32/ssd300.xml");
-    // auto model = core.read_model("/opt/intel/openvino/samples/cpp/hello_remote_blob/public/vgg16/FP32/vgg16.xml");
+    // auto model = core.read_model("../public/ssd300/FP32/ssd300.xml");
+    auto model = core.read_model("/home/ljy/jianyu.liu/models/public/vgg16/FP32/vgg16.xml");
+    std::string input_tensor_name = model->input().get_any_name();
+    std::string output_tensor_name = model->output().get_any_name();
+    std::cout << "input name" << input_tensor_name << std::endl;
+    std::cout << "Output name" << output_tensor_name << std::endl;
+    // printf("Output name:%s \n", output_tensor_name);  
 
     printf("Preprocessing...\n");  
     auto p = PrePostProcessor(model);
     p.input().tensor().set_element_type(ov::element::u8)
                     .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                    .set_memory_type(ov::intel_gpu::memory_type::surface); // No image_nv12 to image_nv12 reorder is supported
-                    // .set_spatial_static_shape(input_height, input_width);
+                    .set_memory_type(ov::intel_gpu::memory_type::surface) // No image_nv12 to image_nv12 reorder is supported
+                    .set_spatial_static_shape(input_height, input_width);
             
     p.input().preprocess()
                     // .convert_element_type(ov::element::f32) // No this code: Sizes equal or broadcast is possible(true) should be false  
                     // see https://github.com/openvinotoolkit/openvino/pull/7508/files#diff-977744dce511c9709f290043976db52b438c0aa4a8b4017d9bb261296b9885e6R675
                     // convert to BGR default element type is f32
-                    .convert_color(ov::preprocess::ColorFormat::BGR);
+                    .convert_color(ov::preprocess::ColorFormat::BGR)
+                    .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR, 224, 224);
     p.input().model().set_layout("NCHW");
     model = p.build();
     printf("Build finished\n");  
@@ -427,7 +438,21 @@ int main(int argc, char **argv)
     // auto compiled_model = core.compile_model(model, "GPU");
 
     printf("Compile model finished\n");  
-
+    // input_tensor_name = model->input().get_any_name();
+    output_tensor_name = model->output().get_any_name();
+    // std::cout << "input name" << input_tensor_name << std::endl;
+    std::cout << "Output name" << output_tensor_name << std::endl;
+    std::string labelFileName = "/home/ljy/jianyu.liu/models/public/vgg16/FP32/vgg16.labels";
+    std::vector<std::string> labels;
+    std::ifstream inputFile;
+    inputFile.open(labelFileName, std::ios::in);
+    if (inputFile.is_open()) {
+        std::string strLine;
+        while (std::getline(inputFile, strLine)) {
+            // trim(strLine);
+            labels.push_back(strLine);
+        }
+    }
     auto input = model->get_parameters().at(0);
 
     // execute decoding and obtain decoded surface handle
@@ -456,7 +481,7 @@ int main(int argc, char **argv)
             break;
         j = i;
         if (video_stream == packet.stream_index)
-            ret = decode_write(decoder_ctx, &packet,input_ctx,display);
+            ret = decode_write(decoder_ctx, &packet, input_ctx, display); // decode one frame
        //create nv12_blob
         // auto nv12_blob = gpu::make_shared_blob_nv12(netInputHeight,
         //                                         netInputWidth,
@@ -480,13 +505,14 @@ int main(int argc, char **argv)
         }
         // if (OK == infer_request_2->Wait(IInferRequest::WaitMode::RESULT_READY)) {}
         // /* you can add your post-process codes here, when the infer_request_2 is completed*/
-
-
+        ov::Tensor output = infer_request.get_tensor(output_tensor_name);
+        ClassificationResult classification_result(output, {"Noooo"}, 1, 10, labels);
+        classification_result.show();
 
 
  
         // infer_request.swap(infer_request_2); //swap request number to async inference
-        // av_packet_unref(&packet);
+        av_packet_unref(&packet);
     }
     end1=clock();
 
