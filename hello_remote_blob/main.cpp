@@ -46,7 +46,7 @@
 #include <map>
 #include <fstream>
 
-#include "classification_results.h"
+#include "../classification_results.h"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/ocl/va.hpp"
@@ -111,7 +111,7 @@ bool buildnetwork= 1 ;
 #endif
 
 
-// const char *filter_descr = "scale_vaapi=300:300"; //scale parameters w:h
+// const char *filter_descr = "scale_vaapi=684:372"; //scale parameters w:h
 const char *filter_descr = "scale_vaapi=iw:ih"; //scale parameters w:h
 static int init_filters(const char *filters_descr,AVBufferRef  *hw_frames_ctx);
 static AVBufferRef *hw_device_ctx = NULL;
@@ -188,6 +188,9 @@ static int decode_write(AVCodecContext *avctx, AVPacket *packet,AVFormatContext 
             //goto fail;
         }
         end1=clock();
+        surface_id=(VASurfaceID)(uintptr_t)frame->data[3];
+        std::cout<<"sur_id before scale vaapi:"<<surface_id<<std::endl;
+        fprintf(stderr, "No.%d frame \n", i);
         //goto filter
         if(flag_filter==1){
             if (av_buffersrc_add_frame_flags(buffersrc_ctx, frame, AV_BUFFERSRC_FLAG_KEEP_REF) < 0){
@@ -399,15 +402,20 @@ int main(int argc, char **argv)
 
     // --------------------------- 1. Load inference engine instance -------------------------------------
 
-    // size_t input_height = 224;
-    // size_t input_width = 224;
-    size_t input_height = 1080;
-    size_t input_width = 1920;
+    size_t input_height = 224;
+    size_t input_width = 224;
+    // size_t input_height = 1080;
+    // size_t input_width = 1920;
+
+    // size_t resize_height = 684;
+    // size_t resize_width = 372;
 
     // initialize the core and load the network
     ov::Core core;
+    // auto model = core.read_model("/home/ljy/jianyu.liu/models/face-detection-adas-0001.xml");
     // auto model = core.read_model("../public/ssd300/FP32/ssd300.xml");
     auto model = core.read_model("/home/ljy/jianyu.liu/models/public/vgg16/FP32/vgg16.xml");
+    // auto model = core.read_model("/home/ljy/jianyu.liu/models/public/fast-neural-style-mosaic-onnx/FP32/fast-neural-style-mosaic-onnx.xml");
     std::string input_tensor_name = model->input().get_any_name();
     std::string output_tensor_name = model->output().get_any_name();
     std::cout << "input name" << input_tensor_name << std::endl;
@@ -426,7 +434,7 @@ int main(int argc, char **argv)
                     // see https://github.com/openvinotoolkit/openvino/pull/7508/files#diff-977744dce511c9709f290043976db52b438c0aa4a8b4017d9bb261296b9885e6R675
                     // convert to BGR default element type is f32
                     .convert_color(ov::preprocess::ColorFormat::BGR)
-                    .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR, 224, 224);
+                    .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     p.input().model().set_layout("NCHW");
     model = p.build();
     printf("Build finished\n");  
@@ -468,12 +476,23 @@ int main(int argc, char **argv)
     // infer_request.wait();
     printf("Ready to inference\n");
 
-    // std::string input_name = model->input().get_any_name();
+    vector<string> input_names;
     auto input_nodes = model->inputs();
     for (auto input_node:input_nodes){
         std::string name = input_node.get_any_name();
+        input_names.push_back(name);
+        std::cout << "input node name:" << input_node.get_any_name() << std::endl;
         // slog::info<< "input node name:" << input_node.get_any_name() << slog::endl;
     }
+
+    auto context = compiled_model.get_context(); // default is clcontext
+    // ov::RemoteContext context = core.get_default_context(contexts[0]);
+    auto output_port = compiled_model.output();
+    auto out_tensor = context.create_tensor(output_port.get_element_type(), output_port.get_shape());
+    std::cout << out_tensor.get_device_name() << std::endl;
+    infer_request.set_tensor(output_port, out_tensor);
+
+    // auto va_out_blob = shared_va_context.create_tensor
 
     /* actual decoding and dump the raw data */
     while (ret >= 0) {
@@ -491,10 +510,14 @@ int main(int argc, char **argv)
         
         auto nv12_blob = shared_va_context.create_tensor_nv12(input_height, input_width, surface_id);
 
-
         // --------------------------- 6. Prepare input --------------------------------------------------------
-        infer_request.set_tensor("data/y", nv12_blob.first);
-        infer_request.set_tensor("data/uv", nv12_blob.second);
+        // infer_request.set_tensor("data/y", nv12_blob.first);
+        // infer_request.set_tensor("data/uv", nv12_blob.second);
+        infer_request.set_tensor(input_names[0], nv12_blob.first);
+        infer_request.set_tensor(input_names[1], nv12_blob.second);
+        // ov::RemoteTensor remote_tensor = context.create_tensor(output_port.get_element_type(), output_port.get_shape());
+        // infer_request.set_tensor(output_port, remote_tensor);
+        printf("y surface_id: %d, uv sid: %d", VASurfaceID(nv12_blob.first), VASurfaceID(nv12_blob.second));
 
         // --------------------------- 7. Do inference --------------------------------------------------------
         if(j != i){  //if this frame is not empty and the inference complete
@@ -505,14 +528,19 @@ int main(int argc, char **argv)
         }
         // if (OK == infer_request_2->Wait(IInferRequest::WaitMode::RESULT_READY)) {}
         // /* you can add your post-process codes here, when the infer_request_2 is completed*/
-        ov::Tensor output = infer_request.get_tensor(output_tensor_name);
-        ClassificationResult classification_result(output, {"Noooo"}, 1, 10, labels);
+        // auto out_tensor = infer_request.get_tensor(output_tensor_name).as<ov::intel_gpu::ocl::ClBufferTensor>();
+        
+        // printf("output surface_id: %d", VASurfaceID(output));
+
+        ClassificationResult classification_result(out_tensor, {"Noooo"}, 1, 10, labels);
         classification_result.show();
 
 
  
         // infer_request.swap(infer_request_2); //swap request number to async inference
         av_packet_unref(&packet);
+        // if (j == 100)
+        //     return 0;
     }
     end1=clock();
 
