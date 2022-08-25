@@ -4,10 +4,10 @@ This project follows [OpenVINO Cpp sample](https://github.com/openvinotoolkit/op
 
 
 ## System information (version)
-- OpenVINO=> 2022.1
-- Operating System / Platform => ubuntu20.04
+- openvino: recent version in my forked [repo](https://github.com/Kizna1ver/openvino/tree/feature/CAPI-VA-Remoteblob) from branch master.  
+- Operating System / Platform : ubuntu20.04
 - Intel Media Driver=> [21.3.5](https://github.com/intel/media-driver/releases/tag/intel-media-21.3.5)
-- ffmpeg=> version:git-2022-05-19-94968db 
+- ffmpeg: commit [81ebf40](https://github.com/Kizna1ver/FFmpeg) in branch master.
 - ffmpeg install configuration =>
 ```
 --extra-cflags=-I/opt/intel/openvino_2022/runtime/include/ie/ --extra-ldflags=-L/opt/intel/openvino_2022/runtime/lib/intel64/ --extra-ldflags=-L/opt/intel/openvino_2022/runtime/3rdparty/tbb/lib/ --enable-libopenvino --disable-lzma --enable-pic --enable-nonfree --disable-stripping --enable-hwaccel=h264_vaapi --enable-shared

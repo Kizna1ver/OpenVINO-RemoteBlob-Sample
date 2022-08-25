@@ -1,41 +1,6 @@
-// Copyright (C) 2018-2021 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
-//
-/*
- * Copyright (c) 2015 Anton Khirnov
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
- * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- */
-
-/**
- * @file
- * Intel QSV-accelerated H.264 decoding example.
- *
- * @example qsvdec.c
- * This example shows how to do QSV-accelerated H.264 decoding with output
- * frames in the GPU video surfaces.
- */
-
 #include <unistd.h>
 #include <stdlib.h>
 
-// #include <gflags/gflags.h>
 #include <iostream>
 
 #include <vector>
@@ -111,8 +76,7 @@ bool buildnetwork= 1 ;
 #endif
 
 
-// const char *filter_descr = "scale_vaapi=684:372"; //scale parameters w:h
-const char *filter_descr = "scale_vaapi=iw:ih"; //scale parameters w:h
+const char *filter_descr = "scale_vaapi=960:540"; //scale parameters w:h
 static int init_filters(const char *filters_descr,AVBufferRef  *hw_frames_ctx);
 static AVBufferRef *hw_device_ctx = NULL;
 static enum AVPixelFormat hw_pix_fmt;
@@ -402,42 +366,36 @@ int main(int argc, char **argv)
 
     // --------------------------- 1. Load inference engine instance -------------------------------------
 
-    size_t input_height = 224;
-    size_t input_width = 224;
-    // size_t input_height = 1080;
-    // size_t input_width = 1920;
-
-    // size_t resize_height = 684;
-    // size_t resize_width = 372;
+    size_t input_height = 540;
+    size_t input_width = 960;
 
     // initialize the core and load the network
     ov::Core core;
-    // auto model = core.read_model("/home/ljy/jianyu.liu/models/face-detection-adas-0001.xml");
-    // auto model = core.read_model("../public/ssd300/FP32/ssd300.xml");
-    auto model = core.read_model("/home/ljy/jianyu.liu/models/public/vgg16/FP32/vgg16.xml");
-    // auto model = core.read_model("/home/ljy/jianyu.liu/models/public/fast-neural-style-mosaic-onnx/FP32/fast-neural-style-mosaic-onnx.xml");
+    auto model = core.read_model("../models/espcn1080p.xml");
+    
     std::string input_tensor_name = model->input().get_any_name();
     std::string output_tensor_name = model->output().get_any_name();
-    std::cout << "input name: " << input_tensor_name << std::endl;
-    std::cout << "Output name: " << output_tensor_name << std::endl;
+    std::cout << "input name" << input_tensor_name << std::endl;
+    std::cout << "Output name" << output_tensor_name << std::endl;
     // printf("Output name:%s \n", output_tensor_name);  
 
     printf("Preprocessing...\n");  
     auto p = PrePostProcessor(model);
     p.input().tensor().set_element_type(ov::element::u8)
-                    .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                    .set_memory_type(ov::intel_gpu::memory_type::surface) // No image_nv12 to image_nv12 reorder is supported
-                    .set_spatial_static_shape(input_height, input_width);
+                    .set_color_format(ov::preprocess::ColorFormat::UNDEFINED)
+                    .set_memory_type(ov::intel_gpu::memory_type::surface); // No image_nv12 to image_nv12 reorder is supported
+                    // .set_spatial_static_shape(input_height, input_width);
             
-    p.input().preprocess()
-                    // .convert_element_type(ov::element::f32) // No this code: Sizes equal or broadcast is possible(true) should be false  
-                    // see https://github.com/openvinotoolkit/openvino/pull/7508/files#diff-977744dce511c9709f290043976db52b438c0aa4a8b4017d9bb261296b9885e6R675
-                    // convert to BGR default element type is f32
-                    .convert_color(ov::preprocess::ColorFormat::BGR)
-                    .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+    // p.input().preprocess()
+    //                 .convert_element_type(ov::element::f32) // No this code: Sizes equal or broadcast is possible(true) should be false  
+    //                 // see https://github.com/openvinotoolkit/openvino/pull/7508/files#diff-977744dce511c9709f290043976db52b438c0aa4a8b4017d9bb261296b9885e6R675
+    //                 // convert to BGR default element type is f32
+    //                 // .convert_color(ov::preprocess::ColorFormat::NV12_SINGLE_PLANE)
+    //                 .resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
     p.input().model().set_layout("NCHW");
     model = p.build();
     printf("Build finished\n");  
+    cout << p;
 
     // create the shared context object
     auto shared_va_context = ov::intel_gpu::ocl::VAContext(core, display);
@@ -450,24 +408,7 @@ int main(int argc, char **argv)
     output_tensor_name = model->output().get_any_name();
     // std::cout << "input name" << input_tensor_name << std::endl;
     std::cout << "Output name" << output_tensor_name << std::endl;
-    std::string labelFileName = "/home/ljy/jianyu.liu/models/public/vgg16/FP32/vgg16.labels";
-    std::vector<std::string> labels;
-    std::ifstream inputFile;
-    inputFile.open(labelFileName, std::ios::in);
-    if (inputFile.is_open()) {
-        std::string strLine;
-        while (std::getline(inputFile, strLine)) {
-            // trim(strLine);
-            labels.push_back(strLine);
-        }
-    }
     auto input = model->get_parameters().at(0);
-
-    // execute decoding and obtain decoded surface handle
-    // VASurfaceID va_surface = decode_va_surface();
-    //     ...
-    //wrap decoder output into RemoteBlobs and set it as inference input
-    // auto nv12_blob = shared_va_context.create_tensor_nv12(height, width, surface_id);
 
     auto infer_request = compiled_model.create_infer_request();
     printf("Ready to inference\n");
@@ -484,10 +425,9 @@ int main(int argc, char **argv)
     auto context = compiled_model.get_context(); // default is clcontext
     // ov::RemoteContext context = core.get_default_context(contexts[0]);
     auto output_port = compiled_model.output();
-    // codes for output tensor in GPU.
-    // auto out_tensor = context.create_tensor(output_port.get_element_type(), output_port.get_shape());
-    // std::cout << out_tensor.get_device_name() << std::endl;
-    // infer_request.set_tensor(output_port, out_tensor);
+    auto out_tensor = context.create_tensor(output_port.get_element_type(), output_port.get_shape());
+    std::cout << out_tensor.get_device_name() << std::endl;
+    infer_request.set_tensor(output_port, out_tensor);
 
     // auto va_out_blob = shared_va_context.create_tensor
 
@@ -498,22 +438,12 @@ int main(int argc, char **argv)
         j = i;
         if (video_stream == packet.stream_index)
             ret = decode_write(decoder_ctx, &packet, input_ctx, display); // decode one frame
-       //create nv12_blob
-        // auto nv12_blob = gpu::make_shared_blob_nv12(netInputHeight,
-        //                                         netInputWidth,
-        //                                         shared_va_context,
-        //                                         surface_id
-        //                                         );
-        
         auto nv12_blob = shared_va_context.create_tensor_nv12(input_height, input_width, surface_id);
 
         // --------------------------- 6. Prepare input --------------------------------------------------------
         // infer_request.set_tensor("data/y", nv12_blob.first);
         // infer_request.set_tensor("data/uv", nv12_blob.second);
         infer_request.set_tensor(input_names[0], nv12_blob.first);
-        infer_request.set_tensor(input_names[1], nv12_blob.second);
-        // ov::RemoteTensor remote_tensor = context.create_tensor(output_port.get_element_type(), output_port.get_shape());
-        // infer_request.set_tensor(output_port, remote_tensor);
         printf("y surface_id: %d, uv sid: %d", VASurfaceID(nv12_blob.first), VASurfaceID(nv12_blob.second));
 
         // --------------------------- 7. Do inference --------------------------------------------------------
@@ -523,18 +453,6 @@ int main(int argc, char **argv)
             infer_request.infer();
             // slog::info << "No. "<<i-1<<"frame inference completed"<< slog::endl;
         }
-        // if (OK == infer_request_2->Wait(IInferRequest::WaitMode::RESULT_READY)) {}
-        // /* you can add your post-process codes here, when the infer_request_2 is completed*/
-        // auto out_tensor = infer_request.get_tensor(output_tensor_name).as<ov::intel_gpu::ocl::ClBufferTensor>();
-        ov::Tensor out_tensor = infer_request.get_tensor(output_tensor_name);
-        // printf("output surface_id: %d", VASurfaceID(output));
-
-        ClassificationResult classification_result(out_tensor, {"Noooo"}, 1, 10, labels);
-        classification_result.show();
-
-
- 
-        // infer_request.swap(infer_request_2); //swap request number to async inference
         av_packet_unref(&packet);
         // if (j == 100)
         //     return 0;
